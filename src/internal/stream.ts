@@ -54,11 +54,11 @@ export class Stream {
    * The other side could be malicious webpage speaking same language as webext-bridge
    * @param msg
    */
-  public send(msg?: JsonValue): void {
+  public send(msg?: JsonValue) {
     if (this.isClosed)
       throw new Error('Attempting to send a message over closed stream. Use stream.onClose(<callback>) to keep an eye on stream status')
 
-    this.endpointRuntime.sendMessage('__crx_bridge_stream_transfer__', {
+    return this.endpointRuntime.sendMessage('__crx_bridge_stream_transfer__', {
       streamId: this.streamInfo.streamId,
       streamTransfer: msg,
       action: 'transfer',
@@ -71,17 +71,23 @@ export class Stream {
    * If needed again, spawn a new Stream, as this instance cannot be re-opened
    * @param msg
    */
-  public close(msg?: JsonValue): void {
+  public close(msg?: JsonValue) {
+    const promises = []
+
     if (msg)
-      this.send(msg)
+      promises.push(this.send(msg))
 
     this.handleStreamClose()
 
-    this.endpointRuntime.sendMessage('__crx_bridge_stream_transfer__', {
+    const closeMessage = this.endpointRuntime.sendMessage('__crx_bridge_stream_transfer__', {
       streamId: this.streamInfo.streamId,
       streamTransfer: null,
       action: 'close',
     }, Object.assign({}, this.streamInfo.endpoint))
+
+    promises.push(closeMessage)
+
+    return Promise.all(promises)
   }
 
   /**
